@@ -13,7 +13,6 @@ class OptparseExample
     attr_accessor :input, :output, :start
 
     def initialize
-      self.input = 'image.img'
       self.output = './output/'
       self.start = 0x000000206674797061766331
     end
@@ -35,14 +34,14 @@ class OptparseExample
       parser.separator ''
       parser.separator 'Specific options:'
 
-      parser.on('-i', '--input [FILE]',
-                'Input file',
+      parser.on('-i', '--input [FILE]', String, :required,
+                'Input file (REQUIRED)',
                 'Disc image by DD') do |e|
-        options.input = e || options.input
+        options.input = e
       end
       parser.separator ''
 
-      parser.on('-o', '--output [DIRECTORY]',
+      parser.on('-o', '--output [DIRECTORY]', String,
                 'Output directory',
                 'Directory to store finded files',
                 'Default: "./output/"') do |e|
@@ -50,7 +49,7 @@ class OptparseExample
       end
       parser.separator ''
 
-      parser.on('-s', '--start [HEX CHARACTERS]',
+      parser.on('-s', '--start [HEX CHARACTERS]', String,
                 'Characters from which files starts',
                 'Default: "0x000000206674797061766331"') do |e|
         options.start = e.hex || options.start
@@ -63,31 +62,25 @@ class OptparseExample
         puts parser
         exit
       end
+      check_options
     end
+  end
+
+  def check_options
+    raise "Missing input file"  if @options.input.nil?
   end
 end # class OptparseExample
 
-pp ARGV
-options = OptparseExample.parse(ARGV)
-pp options
+def main
+  begin
+    options = OptparseExample.parse(ARGV)
+  rescue OptionParser::InvalidOption, OptionParser::MissingArgument => e
+    pp e
+  rescue Exception => e
+    pp e
+    exit
+  end
+  pp options
+end
 
-# User = Struct.new(:id, :name)
-#
-# def find_user id
-#   not_found = ->{ raise "No User Found for id #{id}" }
-#   [ User.new(1, "Sam"),
-#     User.new(2, "Gandalf") ].find(not_found) do |u|
-#     u.id == id
-#   end
-# end
-#
-# op = OptionParser.new
-# op.accept(User) do |user_id|
-#   find_user user_id.to_i
-# end
-#
-# op.on("--user ID", User) do |user|
-#   puts user
-# end
-#
-# op.parse!
+main
