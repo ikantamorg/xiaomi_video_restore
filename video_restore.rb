@@ -4,6 +4,7 @@ require 'optparse'
 # require 'pp'
 require 'pry'
 
+PART_SIZE = 1024
 
 class OptparseExample
   Version = '0.0.1'.freeze
@@ -17,7 +18,7 @@ class OptparseExample
       self.input = nil
       self.output = './output/'
       self.start = "\x00\x00\x00 ftypavc1"
-      self.extention = "mp4"
+      self.extention = 'mp4'
     end
   end
 
@@ -70,24 +71,25 @@ class OptparseExample
   end
 
   def check_options
-    raise "Missing input file"  if options.input.nil?
+    fail 'Missing input file' if options.input.nil?
   end
 end
 
 class Buffer
-  FILE_NAME = "export_%05i"
+  FILE_NAME = 'export_%05i'.freeze
 
-  attr_reader :path, :file
-  attr_accessor :started
+  attr_reader :path, :file, :length
+  attr_writer :start
   @@index = 0
 
   def initialize(options)
     @empty = true
-    @path = "#{ options.output }#{ FILE_NAME % @@index }.#{ options.extention }"
+    @path = "#{options.output}#{FILE_NAME % @@index}.#{options.extention}"
     # p "File path: #{@path}"
     # p
+    @file = IO.new(IO.sysopen(@path, "w"), 'w')
+    @length = 0
 
-    @file = File.new(@path, 'w+')
   end
 
   def get_index
@@ -95,14 +97,15 @@ class Buffer
   end
 
   def add(data)
-    @file.write(data)
     @empty = false
+    @file.write(data)
+    @length += data.length
   end
 
   def close
     unless empty?
       p "Closed file: #{@path}"
-      @file.close()
+      @file.close
     else
       File.delete(@path)
     end
@@ -113,12 +116,11 @@ class Buffer
   end
 
   def started?
-    @started
+    !@start.nil?
   end
 end
 
 class Reader
-
 end
 
 def main
@@ -130,22 +132,27 @@ def main
     p e
     exit
   end
-  p "Options:"
+  p 'Options:'
   p options
   p ''
 
-  unless File.exists? options.input
+  unless File.exist? options.input
     p "File '#{options.input}' not found"
     exit
   end
-  p "Start process..."
-  reader = File.new(options.input, 'rb')
+  p 'Start process...'
+  # reader = File.new(options.input, 'rb')
+  # begin
+    process_file(options)
+  # rescue SystemExit, Interrupt
+  #   "SystemExit, Interrupt"
+  # rescue Exception => e
+  #   "Bye"
+  # end
 
-  process_file(options, reader)
+  # reader.close
 
-  reader.close
-
-  p "End!"
+  p 'End!'
 end
 
 def get_count(last, poz)
@@ -156,46 +163,65 @@ def process_part(options, part, buf)
   last = -1
   len = part.length
 
-  while last < len do
+  while last < len
     poz = part.index(options.start, last + 1)
     if poz.nil?
-      # p "Poz not finded"
-      unless buf.started?
-        count = get_count(last, poz)
-        buf.add(part.biteslice(last, count))
-
-        buf.add(part)
+      # p "Poz not finded. Started? #{buf.started?}"
+      if buf.started?
+        last = last == -1 ? 0 : last
+        count = get_count(last, len + 1)
+        added_part = part.byteslice(last, count)
+        # p "Added last part. From=#{last} count=#{added_part.length}"
+        buf.add(added_part)
       end
-      last = len
+
+      break
     else
 
-      # p "Find start poz=#{poz}"
-      unless buf.started?
+      # p "Find start poz=#{poz} Empty? = #{buf.empty?}"
+      if buf.started?
         count = get_count(last, poz)
-        buf.add(part.biteslice(last, count))
+        # p "Last: #{last}, poz: #{poz}, count: #{count}"
+        tmp = part.byteslice(last + 1, count)
+        # p tmp
+        buf.add(tmp)
         buf.close
+        # p "File closed!"
         last += count
         buf = Buffer.new(options)
       else
-        buf.started?
-        last = poz + 1
+        # p "Start from poz=#{poz}"
+        buf.start = poz
+        last = poz
       end
     end
   end
+ # p "---- End part. length: #{buf.length}"
+
 end
 
-def process_file(options, reader)
+def read_part(options, offset)
+  IO.binread(options.input, PART_SIZE, offset)
+end
+
+def process_file(options, start_offset=0, end_offset=nil)
+  offset = start_offset
+  end_offset ||= File.size(options.input)
+
   buf = Buffer.new(options)
   i = 0
-  while (part = reader.gets(100))
-    p "Process part: #{i}"
-    p part
+
+  while (offset < end_offset)
+    # p "Process part: #{i}, offset: #{offset}"
+    part = read_part(options, offset)
+    # p part
+
     process_part(options, part, buf)
+    offset += PART_SIZE
     i += 1
-    exit
+    # exit if offset > 3000
   end
   buf.close
 end
-
 
 main
