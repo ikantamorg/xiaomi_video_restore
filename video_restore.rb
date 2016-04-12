@@ -1,10 +1,12 @@
 #!/usr/bin/env ruby
-require 'optparse'
-# require 'ostruct'
-# require 'pp'
-require 'pry'
 
-PART_SIZE = 1024
+
+require 'optparse'
+require 'pry'
+require 'action_view'
+
+
+PART_SIZE = 50
 
 class OptparseExample
   Version = '0.0.1'.freeze
@@ -85,11 +87,8 @@ class Buffer
   def initialize(options)
     @empty = true
     @path = "#{options.output}#{FILE_NAME % @@index}.#{options.extention}"
-    # p "File path: #{@path}"
-    # p
     @file = IO.new(IO.sysopen(@path, "w"), 'w')
     @length = 0
-
   end
 
   def get_index
@@ -104,7 +103,7 @@ class Buffer
 
   def close
     unless empty?
-      p "Closed file: #{@path}"
+      p "Created file: #{@path} #{ActionView::Base.new.number_to_human_size(File.size(@path))}"
       @file.close
     else
       File.delete(@path)
@@ -118,9 +117,6 @@ class Buffer
   def started?
     !@start.nil?
   end
-end
-
-class Reader
 end
 
 def main
@@ -141,16 +137,8 @@ def main
     exit
   end
   p 'Start process...'
-  # reader = File.new(options.input, 'rb')
-  # begin
-    process_file(options)
-  # rescue SystemExit, Interrupt
-  #   "SystemExit, Interrupt"
-  # rescue Exception => e
-  #   "Bye"
-  # end
 
-  # reader.close
+  process_file(options)
 
   p 'End!'
 end
@@ -159,45 +147,67 @@ def get_count(last, poz)
   poz - last
 end
 
-def process_part(options, part, buf)
-  last = -1
+def itStartPart?(options, part)
+  part == options.start[0..part.length]
+end
+
+def getTail(options, part)
+  start_length = options.start.length
   len = part.length
+  now = len - start_length
+  tail = ""
+  while now < len
+    poz = part.index(options.start[0], now)
+    unless poz.nil?
+      founded_part = part.byteslice(poz)
+      if itStartPart?(options, founded_part)
+        tail = founded_part
+        break
+      end
+    end
+    now += 1
+  end
+
+  tail
+end
+
+def process_part(options, part, buf, tail, after_limit=false)
+  last = -1
+  part = tail + part
+  tail = ""
+  len = part.length
+  max = -> (a, b) { a >= b ? a : b }
 
   while last < len
     poz = part.index(options.start, last + 1)
     if poz.nil?
-      # p "Poz not finded. Started? #{buf.started?}"
+      tail = getTail(options, part)
+      part = part.chomp(tail)
       if buf.started?
-        last = last == -1 ? 0 : last
+        last = max[last, 0]
         count = get_count(last, len + 1)
         added_part = part.byteslice(last, count)
-        # p "Added last part. From=#{last} count=#{added_part.length}"
         buf.add(added_part)
       end
 
       break
     else
-
-      # p "Find start poz=#{poz} Empty? = #{buf.empty?}"
       if buf.started?
         count = get_count(last, poz)
-        # p "Last: #{last}, poz: #{poz}, count: #{count}"
         tmp = part.byteslice(last + 1, count)
-        # p tmp
         buf.add(tmp)
         buf.close
-        # p "File closed!"
         last += count
         buf = Buffer.new(options)
       else
-        # p "Start from poz=#{poz}"
         buf.start = poz
         last = poz
       end
+
+      return true if after_limit
     end
   end
- # p "---- End part. length: #{buf.length}"
-
+ return false
 end
 
 def read_part(options, offset)
@@ -209,17 +219,16 @@ def process_file(options, start_offset=0, end_offset=nil)
   end_offset ||= File.size(options.input)
 
   buf = Buffer.new(options)
-  i = 0
+  tail = ""
 
-  while (offset < end_offset)
-    # p "Process part: #{i}, offset: #{offset}"
+  while true
     part = read_part(options, offset)
-    # p part
+    break if part.nil?
 
-    process_part(options, part, buf)
+    if process_part(options, part, buf, tail, offset >= end_offset)
+      break
+    end
     offset += PART_SIZE
-    i += 1
-    # exit if offset > 3000
   end
   buf.close
 end
