@@ -6,7 +6,6 @@ require 'pry'
 require 'action_view'
 
 
-PART_SIZE = 50
 
 class OptparseExample
   Version = '0.0.1'.freeze
@@ -14,13 +13,14 @@ class OptparseExample
   attr_reader :parser, :options
 
   class ScriptOptions
-    attr_accessor :input, :output, :start, :extention
+    attr_accessor :input, :output, :start, :extention, :part_size
 
     def initialize
       self.input = nil
       self.output = './output/'
       self.start = "\x00\x00\x00 ftypavc1"
       self.extention = 'mp4'
+      self.part_size = 50 #bites
     end
   end
 
@@ -119,112 +119,121 @@ class Buffer
   end
 end
 
-def main
-  begin
-    options = OptparseExample.parse(ARGV)
-  rescue OptionParser::InvalidOption, OptionParser::MissingArgument => e
-    p e
-  rescue Exception => e
-    p e
-    exit
+
+class Restore
+  def self.start
+    self.new.main
   end
 
-  unless File.exist? options.input
-    p "File '#{options.input}' not found"
-    exit
+  def main
+    begin
+      options = OptparseExample.parse(ARGV)
+    rescue OptionParser::InvalidOption, OptionParser::MissingArgument => e
+      p e
+    rescue Exception => e
+      p e
+      exit
+    end
+
+    unless File.exist? options.input
+      p "File '#{options.input}' not found"
+      exit
+    end
+
+    p 'Start process...'
+
+    process_file(options)
+
+    p 'End!'
   end
 
-  p 'Start process...'
+  def getTail(options, part)
+    start_length = options.start.length
+    len = part.length
+    now = len - start_length
 
-  process_file(options)
+    itStartPart = -> (_part) {_part == options.start[0.._part.length]}
 
-  p 'End!'
-end
+    tail = ""
+    while now < len
+      poz = part.index(options.start[0], now)
+      unless poz.nil?
+        founded_part = part.byteslice(poz)
+        if itStartPart[founded_part]
+          tail = founded_part
+          break
+        end
+      end
+      now += 1
+    end
 
-def getTail(options, part)
-  start_length = options.start.length
-  len = part.length
-  now = len - start_length
+    tail
+  end
 
-  itStartPart = -> (_part) {_part == options.start[0.._part.length]}
+  def process_part(options, part, buf, tail, after_limit=false)
+    last = -1
+    part = tail + part
+    tail = ""
+    len = part.length
+    max = -> (a, b) { a >= b ? a : b }
+    get_count = -> (a, b) { b - a}
 
-  tail = ""
-  while now < len
-    poz = part.index(options.start[0], now)
-    unless poz.nil?
-      founded_part = part.byteslice(poz)
-      if itStartPart[founded_part]
-        tail = founded_part
+    while last < len
+      poz = part.index(options.start, last + 1)
+      if poz.nil?
+        tail = getTail(options, part)
+        part = part.chomp(tail)
+        if buf.started?
+          last = max[last, 0]
+          count = get_count[last, len + 1]
+          added_part = part.byteslice(last, count)
+          buf.add(added_part)
+        end
+
+        break
+      else
+        if buf.started?
+          count = get_count[last, poz]
+          tmp = part.byteslice(last + 1, count)
+          buf.add(tmp)
+          buf.close
+          last += count
+          buf = Buffer.new(options)
+        else
+          buf.start = poz
+          last = poz
+        end
+
+        return true if after_limit
+      end
+    end
+   return false
+  end
+
+  def read_part(options, offset)
+    IO.binread(options.input, options.part_size, offset)
+  end
+
+  def process_file(options, start_offset=0, end_offset=nil)
+    offset = start_offset
+    end_offset ||= File.size(options.input)
+
+    buf = Buffer.new(options)
+    tail = ""
+
+    while true
+      part = read_part(options, offset)
+      break if part.nil?
+
+      if process_part(options, part, buf, tail, offset >= end_offset)
         break
       end
+      offset += options.part_size
     end
-    now += 1
+    buf.close
   end
-
-  tail
 end
 
-def process_part(options, part, buf, tail, after_limit=false)
-  last = -1
-  part = tail + part
-  tail = ""
-  len = part.length
-  max = -> (a, b) { a >= b ? a : b }
-  get_count = -> (a, b) { b - a}
-
-  while last < len
-    poz = part.index(options.start, last + 1)
-    if poz.nil?
-      tail = getTail(options, part)
-      part = part.chomp(tail)
-      if buf.started?
-        last = max[last, 0]
-        count = get_count[last, len + 1]
-        added_part = part.byteslice(last, count)
-        buf.add(added_part)
-      end
-
-      break
-    else
-      if buf.started?
-        count = get_count[last, poz]
-        tmp = part.byteslice(last + 1, count)
-        buf.add(tmp)
-        buf.close
-        last += count
-        buf = Buffer.new(options)
-      else
-        buf.start = poz
-        last = poz
-      end
-
-      return true if after_limit
-    end
-  end
- return false
+if __FILE__ == $0
+  Restore.start
 end
-
-def read_part(options, offset)
-  IO.binread(options.input, PART_SIZE, offset)
-end
-
-def process_file(options, start_offset=0, end_offset=nil)
-  offset = start_offset
-  end_offset ||= File.size(options.input)
-
-  buf = Buffer.new(options)
-  tail = ""
-
-  while true
-    part = read_part(options, offset)
-    break if part.nil?
-
-    if process_part(options, part, buf, tail, offset >= end_offset)
-      break
-    end
-    offset += PART_SIZE
-  end
-  buf.close
-end
-
-main
