@@ -128,14 +128,12 @@ def main
     p e
     exit
   end
-  p 'Options:'
-  p options
-  p ''
 
   unless File.exist? options.input
     p "File '#{options.input}' not found"
     exit
   end
+
   p 'Start process...'
 
   process_file(options)
@@ -143,24 +141,19 @@ def main
   p 'End!'
 end
 
-def get_count(last, poz)
-  poz - last
-end
-
-def itStartPart?(options, part)
-  part == options.start[0..part.length]
-end
-
 def getTail(options, part)
   start_length = options.start.length
   len = part.length
   now = len - start_length
+
+  itStartPart = -> (_part) {_part == options.start[0.._part.length]}
+
   tail = ""
   while now < len
     poz = part.index(options.start[0], now)
     unless poz.nil?
       founded_part = part.byteslice(poz)
-      if itStartPart?(options, founded_part)
+      if itStartPart[founded_part]
         tail = founded_part
         break
       end
@@ -177,6 +170,7 @@ def process_part(options, part, buf, tail, after_limit=false)
   tail = ""
   len = part.length
   max = -> (a, b) { a >= b ? a : b }
+  get_count = -> (a, b) { b - a}
 
   while last < len
     poz = part.index(options.start, last + 1)
@@ -185,7 +179,7 @@ def process_part(options, part, buf, tail, after_limit=false)
       part = part.chomp(tail)
       if buf.started?
         last = max[last, 0]
-        count = get_count(last, len + 1)
+        count = get_count[last, len + 1]
         added_part = part.byteslice(last, count)
         buf.add(added_part)
       end
@@ -193,7 +187,7 @@ def process_part(options, part, buf, tail, after_limit=false)
       break
     else
       if buf.started?
-        count = get_count(last, poz)
+        count = get_count[last, poz]
         tmp = part.byteslice(last + 1, count)
         buf.add(tmp)
         buf.close
