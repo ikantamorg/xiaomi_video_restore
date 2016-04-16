@@ -149,16 +149,16 @@ describe 'Test data' do
             end
         end
     end
-    #
-    # context '4_test_70b_80b' do
-    #     include_examples 'process', '4_test_70b_80b', 2
-    #
-    #     it 'should have first file 70 bite length' do
-    #         expect(File.size(@fs.first)).to eq(70)
-    #     end
-    #
-    #     it 'should have last file 80 bite length' do
-    #         expect(File.size(@fs.last)).to eq(80)
-    #     end
-    # end
+    
+    context '4_test_70b_80b' do
+        include_examples 'process', '4_test_70b_80b', 2
+
+        it 'should have first file 70 bite length' do
+            expect(File.size(@fs.first)).to eq(70)
+        end
+
+        it 'should have last file 80 bite length' do
+            expect(File.size(@fs.last)).to eq(80)
+        end
+    end
 end
