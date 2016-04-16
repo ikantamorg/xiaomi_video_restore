@@ -54,30 +54,7 @@ describe 'Test data' do
     end
 
     describe '1_test_100b' do
-        let(:o) { Starter.options('1_test_100b') }
-
-        before(:all) { MyDir.clear }
-        before(:each) { @fs = MyDir.files }
-
-        it 'should have empty output dir' do
-            expect(@fs).to be_empty
-        end
-
-        it 'should process 1_test_100b' do
-            Restore.new.process_file(o)
-        end
-
-        it 'should get files in output directory' do
-            expect(@fs).not_to be_empty
-        end
-
-        it 'should have 1 file in dir' do
-            expect(@fs.length).to eq(1)
-        end
-
-        it 'should be correct' do
-            expect(Result.correct?(@fs.first)).to eq(true)
-        end
+        include_examples 'process', '1_test_100b', 1
 
         it 'should be 100 bite length' do
             expect(File.size(@fs.first)).to eq(100)
@@ -85,30 +62,7 @@ describe 'Test data' do
     end
 
     context '2_test_111b' do
-        let(:o) { Starter.options('2_test_111b') }
-
-        before(:all) { MyDir.clear }
-        before(:each) { @fs = MyDir.files }
-
-        it 'should have empty output dir' do
-            expect(@fs).to be_empty
-        end
-
-        it 'should process 2_test_111b' do
-            Restore.new.process_file(o)
-        end
-
-        it 'should get files in output directory' do
-            expect(@fs).not_to be_empty
-        end
-
-        it 'should have 1 file in dir' do
-            expect(@fs.length).to eq(1)
-        end
-
-        it 'should be correct' do
-            expect(Result.correct?(@fs.first)).to eq(true)
-        end
+        include_examples 'process', '2_test_111b', 1
 
         it 'should be 111 bite length' do
             expect(File.size(@fs.first)).to eq(111)
@@ -116,32 +70,7 @@ describe 'Test data' do
     end
 
     context '3_test_2x100b' do
-        let(:o) { Starter.options('3_test_2x100b') }
-
-        before(:all) { MyDir.clear }
-        before(:each) { @fs = MyDir.files }
-
-        it 'should have empty output dir' do
-            expect(@fs).to be_empty
-        end
-
-        it 'should process 3_test_2x100b' do
-            Restore.new.process_file(o)
-        end
-
-        it 'should get files in output directory' do
-            expect(@fs).not_to be_empty
-        end
-
-        it 'should have 2 file in dir' do
-            expect(@fs.length).to eq(2)
-        end
-
-        it 'should be correct' do
-            @fs.each do |fs|
-                expect(Result.correct?(fs)).to eq(true)
-            end
-        end
+        include_examples 'process', '3_test_2x100b', 2
 
         it 'should be 100 bite length each' do
             @fs.each do |fs|
@@ -149,7 +78,7 @@ describe 'Test data' do
             end
         end
     end
-    
+
     context '4_test_70b_80b' do
         include_examples 'process', '4_test_70b_80b', 2
 
@@ -159,6 +88,52 @@ describe 'Test data' do
 
         it 'should have last file 80 bite length' do
             expect(File.size(@fs.last)).to eq(80)
+        end
+    end
+
+    context '5_test_273b' do
+        include_examples 'process', '5_test_273b', 1
+
+        it 'should have first file 273 bite length' do
+            expect(File.size(@fs.first)).to eq(273)
+        end
+    end
+
+    context '6_test_ori' do
+        let(:o) { Starter.options('6_test_ori') }
+
+        before(:all) { MyDir.clear }
+        before(:each) { @fs = MyDir.files }
+
+        it 'should process input file' do
+            Restore.new.process_file(o)
+        end
+
+        it 'should have 1 file in dir' do
+            expect(@fs.length).to eq(1)
+        end
+
+        it 'should have file 1443021 bite length' do
+            expect(File.size(@fs.first)).to eq(1_443_021)
+        end
+    end
+
+    context '7_test_with_r' do
+        let(:o) { Starter.options('7_test_with_r') }
+
+        before(:all) { MyDir.clear }
+        before(:each) { @fs = MyDir.files }
+
+        it 'should process input file' do
+            Restore.new.process_file(o)
+        end
+
+        it 'should have 1 file in dir' do
+            expect(@fs.length).to eq(1)
+        end
+
+        it 'should have file 100 bite length' do
+            expect(File.size(@fs.first)).to eq(100)
         end
     end
 end
