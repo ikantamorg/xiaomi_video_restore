@@ -60,6 +60,12 @@ class OptparseExample
                 options.start = e.hex || options.start
             end
 
+            parser.on('-p', '--part_size [INTEGER]', Integer,
+                      'Part size in bites',
+                      'Default: 50') do |e|
+                options.part_size = e || options.part_size
+            end
+
             parser.separator ''
             parser.separator 'Common options:'
 
