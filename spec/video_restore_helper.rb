@@ -16,7 +16,7 @@ class MyDir
   end
 
   def self.files
-    Dir.glob("./output/*")
+    Dir.glob("./output/*").sort
   end
 end
 

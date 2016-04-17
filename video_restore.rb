@@ -151,6 +151,7 @@ class Restore
         p 'Start process...'
 
         process_file(options)
+        # getTail(options, "\x00\x00\x00 ftypavc1\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\xFF\x00\x00\x00 ft")
 
         p 'End!'
     end
@@ -160,14 +161,14 @@ class Restore
         len = part.length
         now = len - start_length
 
-        itStartPart = -> (_part) { _part == options.start[0.._part.length] }
+        itStartPart = -> (_part) { _part == options.start[0..._part.length] }
 
         tail = ''
         while now < len
             poz = part.index(options.start[0], now)
             unless poz.nil?
                 # founded_part = part.byteslice(poz)
-                founded_part = part[poz]
+                founded_part = part[poz, part.length - poz]
                 if itStartPart[founded_part]
                     tail = founded_part
                     break
@@ -236,11 +237,11 @@ class Restore
                     last = poz
                 end
 
-                return [buf, true] if after_limit
+                return [buf, true, tail] if after_limit
             end
         end
 
-        [buf, false]
+        [buf, false, tail]
     end
 
     def read_part(options, offset)
@@ -261,7 +262,8 @@ class Restore
             # i += 1
             break if part.nil?
 
-            buf, need_break = process_part(options, part, buf, tail, offset >= end_offset)
+            buf, need_break, tail = process_part(options, part, buf, tail, offset >= end_offset)
+            # p "Tail: #{tail}"
             break if need_break
 
             offset += options.part_size

@@ -136,4 +136,16 @@ describe 'Test data' do
             expect(File.size(@fs.first)).to eq(100)
         end
     end
+
+    context '8_test_44b_100b' do
+      include_examples 'process', '8_test_44b_100b', 2
+
+      it 'should have first file 44 bite length' do
+          expect(File.size(@fs.first)).to eq(44)
+      end
+
+      it 'should have last file 100 bites length' do
+          expect(File.size(@fs.last)).to eq(100)
+      end
+    end
 end
