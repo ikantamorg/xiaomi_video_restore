@@ -1,9 +1,4 @@
-#!/usr/bin/env ruby
-
 require 'optparse'
-require 'pry'
-require 'action_view'
-require 'pry'
 
 class OptparseExample
     Version = '0.0.1'.freeze
