@@ -11,7 +11,7 @@ class OptparseExample
     attr_reader :parser, :options
 
     class ScriptOptions
-        attr_accessor :input, :output, :start, :extention, :part_size
+        attr_accessor :input, :output, :start, :extention, :part_size, :threads
 
         def initialize
             self.input = nil
@@ -19,6 +19,7 @@ class OptparseExample
             self.start = "\x00\x00\x00 ftypavc1"
             self.extention = 'mp4'
             self.part_size = 50 # bites
+            self.threads = 1
         end
     end
 
@@ -66,6 +67,12 @@ class OptparseExample
                 options.part_size = e || options.part_size
             end
 
+            parser.on('-t', '--threads [INTEGER]', Integer,
+                      'Count threads',
+                      'Default: 1') do |e|
+                options.threads = e || options.threads
+            end
+
             parser.separator ''
             parser.separator 'Common options:'
 
@@ -88,7 +95,7 @@ class Buffer
     attr_writer :start
     @@index = -1
 
-    def initialize(options)
+    def initialize(options, thread=nil)
         @path = "#{options.output}#{FILE_NAME % get_index}.#{options.extention}"
         fd = IO.sysopen(@path, 'wb')
         @file = IO.new(fd, 'wb')
@@ -225,11 +232,26 @@ class Restore
         IO.binread(options.input, options.part_size, offset)
     end
 
-    def process_file(options, start_offset = 0, end_offset = nil)
+    def process_file(options)
+      p "Threads: #{options.threads}"
+
+      max_offset = File.size(options.input)
+      part_size = (max_offset / options.threads).ceil
+      last = -1
+      threads = []
+      options.threads.times do |i|
+        threads << Thread.new { process_thread(options, i, last += 1,  [last += (part_size - 1), max_offset].min) }
+      end
+
+      threads.each { |thr| thr.join }
+    end
+
+    def process_thread(options, thread=0, start_offset=0, end_offset=nil)
+        p "","Start process. thread: #{thread} start_offset: #{start_offset} end_offset: #{end_offset}"
         offset = start_offset
         end_offset ||= File.size(options.input)
 
-        buf = Buffer.new(options)
+        buf = Buffer.new(options, thread)
         tail = ''
         loop do
             part = read_part(options, offset)

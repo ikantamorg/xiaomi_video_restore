@@ -6,6 +6,7 @@ class Starter
     o = OptparseExample::ScriptOptions.new
     o.input = File.expand_path("spec/support/#{filename}.mp4")
     o.part_size = 50
+    o.threads = 2
     o
   end
 end
