@@ -83,14 +83,9 @@ class Buffer
     @@index = -1
 
     def initialize(options)
-        # p "Index=#{get_index}"
         @path = "#{options.output}#{FILE_NAME % get_index}.#{options.extention}"
-        # @file = IO.new(IO.sysopen(@path, "w"), 'w')
-        # p "Open file #{@path}"
         fd = IO.sysopen(@path, 'wb')
         @file = IO.new(fd, 'wb')
-        # @file = File.open(@path, "w")
-        # p "closed?: %s" % @file.closed?.to_s
         @empty = true
         @length = 0
     end
@@ -100,19 +95,13 @@ class Buffer
     end
 
     def add(data)
-        # p "Added data (#{data.length}/#{data})"
-        @empty = false
-        # p "closed?: %s" % @file.closed?.to_s
-
         @file.write(data)
+        @empty = false
         @length += data.length
-        # p "Added data (#{data.length}/#{data})"
     end
 
     def close
-        # p "Close"
         unless empty?
-            # p "Created file: #{@path} #{ActionView::Base.new.number_to_human_size(File.size(@path))}"
             @file.close
         else
             File.delete(@path)
@@ -144,14 +133,12 @@ class Restore
         end
 
         unless File.exist? options.input
-            # p "File '#{options.input}' not found"
             exit
         end
 
         p 'Start process...'
 
         process_file(options)
-        # getTail(options, "\x00\x00\x00 ftypavc1\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\x11\xFF\x00\x00\x00 ft")
 
         p 'End!'
     end
@@ -167,7 +154,6 @@ class Restore
         while now < len
             poz = part.index(options.start[0], now)
             unless poz.nil?
-                # founded_part = part.byteslice(poz)
                 founded_part = part[poz, part.length - poz]
                 if itStartPart[founded_part]
                     tail = founded_part
@@ -193,23 +179,13 @@ class Restore
         get_count = -> (a, b) { b - a }
 
         while last < len
-            # p "Find from #{last + 1}"
             poz = part.index(options.start, last + 1)
-            # p "Poz=#{poz}"
-            # p "closed?: %s" % buf.file.closed?.to_s
-            # p "File: #{buf.file}"
             if poz.nil?
-                # p 'Poz not finded'
                 tail = getTail(options, part)
-                # part = part.chomp(tail)
                 part = chomp_tail(part, tail)
                 if buf.started?
-                    # p 'Add to started'
                     last = max[last, 0]
                     count = get_count[last, len + 1]
-                    # p "Last=#{last} count=#{count}"
-                    # p part.byteslice(last, 100)
-                    # added_part = part.byteslice(last, count)
                     added_part = part[last, count]
                     buf.add(added_part)
                 end
@@ -220,16 +196,11 @@ class Restore
                     last = max[last, 0]
                     count = get_count[last, poz]
                     if count > 0
-                        # p "Count=#{count}, last=#{last}"
-                        # tmp = part.byteslice(last, count)
                         tmp = part[last, count]
                         buf.add(tmp)
                     end
                     buf.close
-                    # p "Closed"
-                    # fail
                     last += count
-                    # p "Last=#{last}"
                     buf = Buffer.new(options)
                     buf.start = poz
                 else
@@ -254,22 +225,16 @@ class Restore
 
         buf = Buffer.new(options)
         tail = ''
-        # i = 0
         loop do
             part = read_part(options, offset)
-            # p "Part: #{i}"
-            # p part
-            # i += 1
             break if part.nil?
 
             buf, need_break, tail = process_part(options, part, buf, tail, offset >= end_offset)
-            # p "Tail: #{tail}"
             break if need_break
 
             offset += options.part_size
         end
         buf.close
-        # p "Close"
     end
 end
 
