@@ -89,9 +89,11 @@ class Buffer
     attr_reader :path, :file, :length
     attr_writer :start
     @@index = -1
+    @@thread = 0
 
     def initialize(options, thread=nil)
-        @path = "#{options.output}#{FILE_NAME % get_index}.#{options.extention}"
+        @@thread = thread || @@thread
+        @path = "#{options.output}#{@@thread}_#{FILE_NAME % get_index}.#{options.extention}"
         fd = IO.sysopen(@path, 'wb')
         @file = IO.new(fd, 'wb')
         @empty = true
@@ -233,12 +235,19 @@ class Restore
       max_offset = File.size(options.input)
       part_size = (max_offset / options.threads).ceil
       last = -1
-      threads = []
+      forks = []
       options.threads.times do |i|
-        threads << Thread.new { process_thread(options, i, last += 1,  [last += (part_size - 1), max_offset].min) }
+        start = last += 1
+        end_part = [last += (part_size - 1), max_offset].min
+        # p "Start: #{start}"
+        # p "End: #{end_part}"
+
+        l = -> (_start, _end) { process_thread(options, i, _start, _end) }
+        forks << fork { l[start, end_part] }
       end
 
-      threads.each { |thr| thr.join }
+      p Process.waitall
+
     end
 
     def process_thread(options, thread=0, start_offset=0, end_offset=nil)
