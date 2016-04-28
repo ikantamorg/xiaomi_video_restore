@@ -1,4 +1,5 @@
 require 'optparse'
+require 'bcrypt'
 
 class OptparseExample
     Version = '0.0.1'.freeze
@@ -127,6 +128,10 @@ class Buffer
     end
 end
 
+def waste
+  10.times { BCrypt::Password.create('secret') }
+end
+
 class Restore
     def self.start
         new.main
@@ -235,16 +240,6 @@ class Restore
       max_offset = File.size(options.input)
       part_size = (max_offset / options.threads).ceil
       last = -1
-      # forks = []
-      # options.threads.times do |i|
-      #   start = last += 1
-      #   end_part = [last += (part_size - 1), max_offset].min
-      #   # p "Start: #{start}"
-      #   # p "End: #{end_part}"
-      #
-      #   l = -> (_start, _end) { process_thread(options, i, _start, _end) }
-      #   forks << fork { l[start, end_part] }
-      # end
 
       threads = []
       options.threads.times do |i|
@@ -265,6 +260,7 @@ class Restore
         buf = Buffer.new(options, thread)
         tail = ''
         loop do
+            # a = Time.now
             part = read_part(options, offset)
             break if part.nil?
 
@@ -272,6 +268,9 @@ class Restore
             break if need_break
 
             offset += options.part_size
+            # p Time.now - a
+            waste
+            # p Time.now - a
         end
         buf.close
     end
