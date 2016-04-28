@@ -235,16 +235,23 @@ class Restore
       max_offset = File.size(options.input)
       part_size = (max_offset / options.threads).ceil
       last = -1
-      forks = []
-      options.threads.times do |i|
-        start = last += 1
-        end_part = [last += (part_size - 1), max_offset].min
-        # p "Start: #{start}"
-        # p "End: #{end_part}"
+      # forks = []
+      # options.threads.times do |i|
+      #   start = last += 1
+      #   end_part = [last += (part_size - 1), max_offset].min
+      #   # p "Start: #{start}"
+      #   # p "End: #{end_part}"
+      #
+      #   l = -> (_start, _end) { process_thread(options, i, _start, _end) }
+      #   forks << fork { l[start, end_part] }
+      # end
 
-        l = -> (_start, _end) { process_thread(options, i, _start, _end) }
-        forks << fork { l[start, end_part] }
+      threads = []
+      options.threads.times do |i|
+        threads << Thread.new { process_thread(options, i, last += 1,  [last += (part_size - 1), max_offset].min) }
       end
+
+      threads.each { |thr| thr.join }
 
       p Process.waitall
 
