@@ -1,4 +1,5 @@
 require 'optparse'
+require 'bcrypt'
 
 class OptparseExample
     Version = '0.0.1'.freeze
@@ -125,6 +126,10 @@ class Buffer
     def started?
         !@start.nil?
     end
+end
+
+def waste
+  10.times { BCrypt::Password.create('secret') }
 end
 
 class Restore
@@ -258,6 +263,7 @@ class Restore
         buf = Buffer.new(options, thread)
         tail = ''
         loop do
+            # a = Time.now
             part = read_part(options, offset)
             break if part.nil?
 
@@ -265,6 +271,9 @@ class Restore
             break if need_break
 
             offset += options.part_size
+            # p Time.now - a
+            waste
+            # p Time.now - a
         end
         buf.close
     end
