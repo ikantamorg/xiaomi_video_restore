@@ -107,6 +107,7 @@ class Buffer
 
     def add(data)
         @file.write(data)
+        @file.fsync
         @empty = false
         @length += data.length
     end
@@ -129,7 +130,7 @@ class Buffer
 end
 
 def waste
-  1.times { BCrypt::Password.create('secret') }
+  20.times { BCrypt::Password.create('secret') }
 end
 
 class Restore
@@ -244,8 +245,6 @@ class Restore
       options.threads.times do |i|
         start = last += 1
         end_part = [last += (part_size - 1), max_offset].min
-        # p "Start: #{start}"
-        # p "End: #{end_part}"
 
         l = -> (_start, _end) { process_thread(options, i, _start, _end) }
         forks << fork { l[start, end_part] }
