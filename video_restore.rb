@@ -107,6 +107,7 @@ class Buffer
 
     def add(data)
         @file.write(data)
+        @file.fsync
         @empty = false
         @length += data.length
     end
@@ -129,7 +130,7 @@ class Buffer
 end
 
 def waste
-  10.times { BCrypt::Password.create('secret') }
+  20.times { BCrypt::Password.create('secret') }
 end
 
 class Restore
